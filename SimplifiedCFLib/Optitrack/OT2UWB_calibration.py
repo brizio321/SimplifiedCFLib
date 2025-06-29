@@ -2,8 +2,6 @@ import numpy as np
 import time
 from matplotlib import pyplot as plt
 
-from plot_fcn import plot_fcn
-
 from scipy import interpolate
 from scipy.spatial.transform import Rotation as R
 from scipy.io import savemat
