@@ -1,6 +1,7 @@
 from Optitrack.PythonNatNetSDK.NatNetClient import NatNetClient
 from matplotlib import pyplot as plt
 import numpy as np
+import scipy.io as sio
 import time
 from threading import Event, Thread
 
@@ -46,11 +47,9 @@ class OptitrackClient:
         self._track_time = np.array([])
 
         # Coordinate Transformation
-        self._uwbO2ot = np.array([0, 0.32, 0])
-        # self._uwbO2ot = np.array([0, 0, 0])
-
-    def set_uwbO_coordinates(self, offset):
-        self._uwbO2ot = np.array(offset)
+        self._coor_transformation_configured = False
+        self._O_ot_in_uwb = None
+        self._rot_ot2uwb = None
 
     def track_object(self, frame_id):
         # Include a new object to the tracked list.
@@ -65,7 +64,20 @@ class OptitrackClient:
             self._tracked_pos[frame_id] = np.empty((3, 0))
         self._tracked_cbs[frame_id] = callback
 
+    def identity_transformation(self):
+        self.load_configuration("config/default_config")
+
+    def load_configuration(self, filename):
+        config = sio.loadmat(filename)
+        self._rot_ot2uwb = config['rot_ot2uwb']
+        self._O_ot_in_uwb = config['O_ot_in_uwb']
+        self._coor_transformation_configured = True
+
     def run(self):
+        if not self._coor_transformation_configured:
+            print("[OptitrackClient.run()] There is no coordinate transformation between OptiTrack and UWB.")
+            print("If you don't want to configure the transformation, invoke the method identity_transformation() on the OptitrackClient object.")
+            return
         # Start the asynchronous data thread
         self._client.run('d')
         self._stop_streaming.wait()
@@ -83,11 +95,14 @@ class OptitrackClient:
         # This function is invoked for each rigid body included in a new data packet
         if new_id not in self._tracked_objs:
             return
-        # new_pos = np.array( [[position[0]], [position[1]], [position[2]]] )
-        new_pos = np.array( [[position[0]], [position[1] - 0.38], [position[2]]] )
+        new_pos = np.reshape(np.array(position), (3,))
         self._tracked_pos[new_id] = np.append(self._tracked_pos[new_id], new_pos, axis=1)
 
         # If the rigid body is associated to a callback, invoke it (after the coordinate is transformed)
-        lpos = [position[i]-self._uwbO2ot[i] for i in range(len(position))]
         if new_id in self._tracked_cbs:
-            self._tracked_cbs[new_id](lpos)
+            # Transform coordinates from OT to UWB
+            # p_uwb = O_ot_in_uwb + rot_ot2uwb @ p_ot
+            p_uwb = self._O_ot_in_uwb + self._rot_ot2uwb@new_pos
+
+            # Send the position information
+            self._tracked_cbs[new_id](p_uwb.tolist())
