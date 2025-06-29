@@ -98,6 +98,7 @@ if __name__ == '__main__':
     # Start the OC client in a separate thread. This is necessary
     # to run in parallel the control of the agent 
     # (I'll simplify this in the next code release)
+    oc.identity_transformation()
     run_thread = Thread(target=oc.run)
     run_thread.start()
 
