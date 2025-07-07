@@ -26,8 +26,8 @@ import struct
 from threading import Thread
 import copy
 import time
-import Optitrack.PythonNatNetSDK.DataDescriptions
-import Optitrack.PythonNatNetSDK.MoCapData as MoCapData
+import PythonNatNetSDK.DataDescriptions
+import PythonNatNetSDK.MoCapData as MoCapData
 
 
 def trace(*args):
@@ -68,10 +68,10 @@ FPCorners = struct.Struct('<ffffffffffff')
 
 
 class NatNetClient:
-    # print_level = 0 off
+    print_level = 0 # off
     # print_level = 1 on
     # print_level = >1 on / print every nth mocap frame
-    print_level = 20
+    # print_level = 20
 
     def __init__(self):
         # Change this value to the IP address of the NatNet server.

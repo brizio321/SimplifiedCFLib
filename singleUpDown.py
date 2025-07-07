@@ -24,15 +24,15 @@ def execute_up_down_relative(self):
     p0 = self.get_last_position()
     # Initial position
     print("Initial position")
-    self.go_to(p0[0][0], p0[1][0], z=p0[2][0]+0.5)
+    self.go_to(p0[0], p0[1], z=p0[2]+0.5)
     time.sleep(5)
     # Go up 
     print("Go up")
-    self.go_to(p0[0][0], p0[1][0], z=p0[2][0]+0.8)
+    self.go_to(p0[0], p0[1], z=p0[2]+0.8)
     time.sleep(5)
     # Go down
     print("Go down to initial position")
-    self.go_to(p0[0][0], p0[1][0], z=p0[2][0]+0.5)
+    self.go_to(p0[0], p0[1], z=p0[2]+0.5)
     time.sleep(5)
 
 if __name__ == '__main__':

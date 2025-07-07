@@ -1,9 +1,10 @@
-from Optitrack.PythonNatNetSDK.NatNetClient import NatNetClient
+from PythonNatNetSDK.NatNetClient import NatNetClient
 from matplotlib import pyplot as plt
 import numpy as np
 import scipy.io as sio
 import time
 from threading import Event, Thread
+import sys
 
 class OptitrackClient:
 
@@ -36,10 +37,10 @@ class OptitrackClient:
         # List of tracked object
         self._tracked_objs = []
 
-        # Dictionary containing, for each frame_id, the list of tracked position
+        # Dictionary containing, for each streaming_id, the list of tracked position
         self._tracked_pos = {}
 
-        # Dictionary containing, for each frame_id, the list of callbacks
+        # Dictionary containing, for each streaming_id, the list of callbacks
         self._tracked_cbs = {}
 
         # Time
@@ -51,21 +52,21 @@ class OptitrackClient:
         self._O_ot_in_uwb = None
         self._rot_ot2uwb = None
 
-    def track_object(self, frame_id):
+    def track_object(self, streaming_id):
         # Include a new object to the tracked list.
         # Objects are identified using the IDs setted in Motive for each rigid body.
-        if frame_id not in self._tracked_objs:
-            self._tracked_objs.append(frame_id)
-            self._tracked_pos[frame_id] = np.empty((3, 0))
+        if streaming_id not in self._tracked_objs:
+            self._tracked_objs.append(streaming_id)
+            self._tracked_pos[streaming_id] = np.empty((3,0))
 
-    def add_track_callback(self, frame_id, callback):
-        if frame_id not in self._tracked_objs:
-            self._tracked_objs.append(frame_id)
-            self._tracked_pos[frame_id] = np.empty((3, 0))
-        self._tracked_cbs[frame_id] = callback
+    def add_track_callback(self, streaming_id, callback):
+        if streaming_id not in self._tracked_objs:
+            self._tracked_objs.append(streaming_id)
+            self._tracked_pos[streaming_id] = np.empty((3, 0))
+        self._tracked_cbs[streaming_id] = callback
 
     def identity_transformation(self):
-        self.load_configuration("config/default_config")
+        self.load_configuration("Optitrack/config/default_config")
 
     def load_configuration(self, filename):
         config = sio.loadmat(filename)
@@ -104,13 +105,18 @@ class OptitrackClient:
         if new_id not in self._tracked_objs:
             return
         new_pos = np.reshape(np.array(position), (3,))
-        self._tracked_pos[new_id] = np.append(self._tracked_pos[new_id], new_pos, axis=1)
+        # print(self._tracked_pos[new_id])
+        # print(new_pos)
+        self._tracked_pos[new_id] = np.append(self._tracked_pos[new_id],
+                np.reshape(new_pos, (3,1)), axis=1)
 
         # If the rigid body is associated to a callback, invoke it (after the coordinate is transformed)
         if new_id in self._tracked_cbs:
             # Transform coordinates from OT to UWB
             # p_uwb = O_ot_in_uwb + rot_ot2uwb @ p_ot
-            p_uwb = self._O_ot_in_uwb + self._rot_ot2uwb@new_pos
+            p_uwb = self._O_ot_in_uwb.reshape((3,)) + self._rot_ot2uwb@new_pos
+
+            # print(p_uwb)
 
             # Send the position information
             self._tracked_cbs[new_id](p_uwb.tolist())

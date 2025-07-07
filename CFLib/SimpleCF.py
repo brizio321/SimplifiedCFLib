@@ -195,6 +195,8 @@ class SimpleCF:
 
     def took_off(self):
         # Check if the agent is flying
+        if self._pos_hl_commander is None and self._motion_commander is None:
+            return False
         if self.use_phlc:
             return self._pos_hl_commander._is_flying
         else:
@@ -245,6 +247,8 @@ class SimpleCF:
                 print("Landing...")
             self._close_commander()
         else:
+            while not self._first_log_arrived:
+                time.sleep(1)
             self._init_phlcommander()
             # Wait for all the drones to take off
             try:
@@ -276,14 +280,17 @@ class SimpleCF:
             time.sleep(0.2)
 
     def _init_phlcommander(self):
+        while not self._first_log_arrived:
+            time.sleep(0.2)
         p0 = self.get_last_position() 
         phlc = PositionHlCommander(self._scf, x=p0[0], y=p0[1], z=0, 
                 default_velocity=DEFAULT_VELOCITY, default_height=DEFAULT_HEIGHT, 
                 controller = PositionHlCommander.CONTROLLER_PID, default_landing_height = DEFAULT_LANDING_HEIGHT)
         phlc.take_off()
         time.sleep(3)
-        self._pos_hl_commander = pc
+        self._pos_hl_commander = phlc
         self._commander = self._scf.cf.commander
+        print("Wait take off...")
         self.wait_for_take_off()
 
     def _close_commander(self):
@@ -322,10 +329,7 @@ class SimpleCF:
         if self._pos_hl_commander == None and self._commander == None:
             print("[SimpleCF.go_to()] No commander object available.")
             return
-        
-        print(x)
-        print(y)
-        print(z)
+
         # Update the setpoint, so the _commander_support_thread can access it
         self._pos_set_point = np.array([x, y, z])
 
@@ -356,8 +360,6 @@ class SimpleCF:
         # Add eventual logic to manage custom logs
 
     def _default_log_cb(self, data):
-        if not self._first_log_arrived:
-            self._first_log_arrived = True
         # Reconstruct position vector
         pos = np.array([[data['kalman.stateX']],
                         [data['kalman.stateY']], 
@@ -367,6 +369,8 @@ class SimpleCF:
         # Store current position
         self._pos_time = np.append(self._pos_time, time.time()-self._start_time)
         self._pos = np.append(self._pos, pos, axis=1)
+        if not self._first_log_arrived:
+            self._first_log_arrived = True
 
     def get_last_position(self):
         # Return the last logged position
